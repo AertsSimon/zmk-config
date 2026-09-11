@@ -9,7 +9,55 @@
 #include <dt-bindings/zmk/bt.h>
 #include <dt-bindings/zmk/ext_power.h>
 
+// ============================================================================
+// VIM-ORIENTED ADDITIONS (see git history for the "before" version if you
+// want a diff). Three changes, each independently tunable:
+//
+// 1. esc_ctrl behavior (below) + used on LCTRL in default_layer:
+//      tap  -> ESC   (vim's most-used key, now reachable from home row)
+//      hold -> CTRL  (still works for Ctrl-chords like Ctrl-w / Ctrl-r)
+//    Tune `tapping-term-ms` if taps feel laggy (lower it) or Ctrl misfires
+//    as Esc when you type fast (raise it). `flavor = "balanced"` was chosen
+//    deliberately: "tap-preferred" would break fast Ctrl-chords, because a
+//    quick second keypress while holding would resolve as a tap instead.
+//
+// 2. raise_layer row 1 (top row) was entirely unused (all &trans) -- it's
+//    now an extended motion row sitting directly above the existing hjkl
+//    arrow row (raise_layer row 3), so columns line up: HOME sits above
+//    LEFT, END above RIGHT, PG_DN above DOWN, PG_UP above UP. See the
+//    updated ASCII map on raise_layer.
+//
+// 3. select_layer (new layer 3): hold LOWER+RAISE together (combo below)
+//    to get Shift+hjkl, i.e. arrow-key text selection ("visual mode").
+//    If the combo feels finicky, raise `timeout-ms` in the combo below;
+//    if it fires by accident during normal lower/raise use, lower it.
+// ============================================================================
+
 / {
+    behaviors {
+        esc_ctrl: escape_or_control {
+            compatible = "zmk,behavior-hold-tap";
+            label = "ESC_CTRL";
+            #binding-cells = <2>;
+            tapping-term-ms = <200>;
+            flavor = "balanced";
+            bindings = <&kp>, <&kp>;
+        };
+    };
+
+    combos {
+        compatible = "zmk,combos";
+        combo_select_layer {
+            // Key positions 52 & 55 are the LOWER and RAISE thumb keys
+            // (0-indexed, counting through default_layer's bindings list:
+            // row1=0-11, row2=12-23, row3=24-35, row4=36-49, thumbs=50-57).
+            // If you ever reorder the thumb row, update these positions.
+            timeout-ms = <50>;
+            key-positions = <52 55>;
+            bindings = <&mo 3>;
+        };
+    };
+
     keymap {
         compatible = "zmk,keymap";
 
@@ -17,15 +65,15 @@
 // ------------------------------------------------------------------------------------------------------------
 // |  ESC  |  1  |  2  |  3   |  4   |  5   |                   |  6   |  7    |  8    |  9   |   0   |   `   |
 // |  TAB  |  Q  |  W  |  E   |  R   |  T   |                   |  Y   |  U    |  I    |  O   |   P   |   -   |
-// |  CTRL |  A  |  S  |  D   |  F   |  G   |                   |  H   |  J    |  K    |  L   |   ;   |   '   |
+// |ESC/CTL|  A  |  S  |  D   |  F   |  G   |                   |  H   |  J    |  K    |  L   |   ;   |   '   |  <- tap=ESC, hold=CTRL (see esc_ctrl behavior)
 // | SHIFT |  Z  |  X  |  C   |  V   |  B   |   "["  |  |  "]"  |  N   |  M    |  ,    |  .   |   /   | SHIFT |
 //                     | ALT  | GUI  | LOWER|  SPACE |  | ENTER | RAISE| BSPC  | GUI   |
             bindings = <
-&kp ESC   &kp N1 &kp N2 &kp N3   &kp N4   &kp N5                     &kp N6 &kp N7   &kp N8    &kp N9  &kp N0   &kp GRAVE
-&kp TAB   &kp Q  &kp W  &kp E    &kp R    &kp T                      &kp Y  &kp U    &kp I     &kp O   &kp P    &kp MINUS
-&kp LCTRL &kp A  &kp S  &kp D    &kp F    &kp G                      &kp H  &kp J    &kp K     &kp L   &kp SEMI &kp SQT
-&kp LSHFT &kp Z  &kp X  &kp C    &kp V    &kp B  &kp LBKT   &kp RBKT &kp N  &kp M    &kp COMMA &kp DOT &kp FSLH &kp RSHFT
-                        &kp LALT &kp LGUI &mo 1  &kp SPACE  &kp RET  &mo 2  &kp BSPC &kp RGUI
+&kp ESC             &kp N1 &kp N2 &kp N3   &kp N4   &kp N5                     &kp N6 &kp N7   &kp N8    &kp N9  &kp N0   &kp GRAVE
+&kp TAB             &kp Q  &kp W  &kp E    &kp R    &kp T                      &kp Y  &kp U    &kp I     &kp O   &kp P    &kp MINUS
+&esc_ctrl LCTRL ESC  &kp A  &kp S  &kp D    &kp F    &kp G                      &kp H  &kp J    &kp K     &kp L   &kp SEMI &kp SQT
+&kp LSHFT           &kp Z  &kp X  &kp C    &kp V    &kp B  &kp LBKT   &kp RBKT &kp N  &kp M    &kp COMMA &kp DOT &kp FSLH &kp RSHFT
+                              &kp LALT &kp LGUI &mo 1  &kp SPACE  &kp RET  &mo 2  &kp BSPC &kp RGUI
             >;
 
             sensor-bindings = <&inc_dec_kp C_VOL_UP C_VOL_DN>;
@@ -51,17 +99,44 @@
 
         raise_layer {
 // ------------------------------------------------------------------------------------------------------------
-// |       |     |     |      |      |      |                   |      |       |       |      |       |       |
+// |       |     |     |      |      |      |                   | HOME | PG_DN | PG_UP | END  | C-LEFT| C-RGHT|  <- new: extended motions
 // |   `   |  1  |  2  |  3   |  4   |  5   |                   |  6   |   7   |   8   |  9   |   0   |       |
 // |   F1  |  F2 |  F3 |  F4  |  F5  |  F6  |                   |  <-  |   v   |  ^   |  ->   |       |       |
 // |   F7  |  F8 |  F9 |  F10 |  F11 |  F12 |        |  |       |  +   |   -   |   =   |  [   |   ]   |   \   |
 //                     |      |      |      |        |  |       |      |       |       |
+// Column alignment is deliberate: HOME sits above LEFT (both "leftward"),
+// END above RIGHT, PG_DN above DOWN, PG_UP above UP -- so the two rows read
+// as one coherent vim-style navigation cluster. C-LEFT/C-RGHT are
+// Ctrl+Left/Ctrl+Right (word-back/word-forward in most apps and terminals).
             bindings = <
-&trans    &trans &trans &trans  &trans  &trans                       &trans      &trans    &trans    &trans     &trans    &trans
-&kp GRAVE &kp N1 &kp N2 &kp N3  &kp N4  &kp N5                       &kp N6      &kp N7    &kp N8    &kp N9     &kp N0    &trans
-&kp F1    &kp F2 &kp F3 &kp F4  &kp F5  &kp F6                       &kp LEFT    &kp DOWN  &kp UP    &kp RIGHT  &trans    &trans
-&kp F7    &kp F8 &kp F9 &kp F10 &kp F11 &kp F12   &trans   &trans    &kp KP_PLUS &kp MINUS &kp EQUAL &kp LBKT   &kp RBKT  &kp BSLH
+&trans    &trans &trans &trans  &trans  &trans                       &kp HOME    &kp PG_DN &kp PG_UP &kp END    &kp LC(LEFT) &kp LC(RIGHT)
+&kp GRAVE &kp N1 &kp N2 &kp N3  &kp N4  &kp N5                       &kp N6      &kp N7    &kp N8    &kp N9     &kp N0       &trans
+&kp F1    &kp F2 &kp F3 &kp F4  &kp F5  &kp F6                       &kp LEFT    &kp DOWN  &kp UP    &kp RIGHT  &trans       &trans
+&kp F7    &kp F8 &kp F9 &kp F10 &kp F11 &kp F12   &trans   &trans    &kp KP_PLUS &kp MINUS &kp EQUAL &kp LBKT   &kp RBKT     &kp BSLH
                         &trans  &trans  &trans    &trans   &trans    &trans      &trans    &trans
+            >;
+
+            sensor-bindings = <&inc_dec_kp C_VOL_UP C_VOL_DN>;
+        };
+
+        select_layer {
+// ------------------------------------------------------------------------------------------------------------
+// |       |     |     |      |      |      |                   |      |       |       |      |       |       |
+// |       |     |     |      |      |      |                   |      |       |       |      |       |       |
+// |       |     |     |      |      |      |                   |S-LEFT|S-DOWN | S-UP  |S-RGHT|       |       |  <- "visual mode": shift+hjkl
+// |       |     |     |      |      |      |        |  |       |      |       |       |      |       |       |
+//                     |      |      |      |        |  |       |      |       |       |
+// Layer 3, reached by holding LOWER+RAISE together (combo defined at the
+// top of this file). Everything else is &trans, so normal typing still
+// works underneath -- this only overlays hjkl with shifted arrows, letting
+// you extend a text selection the way vim's visual mode extends with hjkl.
+// Release either thumb key to drop back out.
+            bindings = <
+&trans &trans &trans &trans &trans &trans                     &trans        &trans        &trans      &trans         &trans &trans
+&trans &trans &trans &trans &trans &trans                     &trans        &trans        &trans      &trans         &trans &trans
+&trans &trans &trans &trans &trans &trans                     &kp LS(LEFT)  &kp LS(DOWN)  &kp LS(UP)  &kp LS(RIGHT)  &trans &trans
+&trans &trans &trans &trans &trans &trans  &trans   &trans    &trans        &trans        &trans      &trans         &trans &trans
+                      &trans &trans &trans  &trans   &trans    &trans        &trans        &trans
             >;
 
             sensor-bindings = <&inc_dec_kp C_VOL_UP C_VOL_DN>;

@@ -11,7 +11,7 @@
 
 // ============================================================================
 // VIM-ORIENTED ADDITIONS (see git history for the "before" version if you
-// want a diff). Three changes, each independently tunable:
+// want a diff). Four changes, each independently tunable:
 //
 // 1. esc_ctrl behavior (below) + used on LCTRL in default_layer:
 //      tap  -> ESC   (vim's most-used key, now reachable from home row)
@@ -31,6 +31,11 @@
 //    to get Shift+hjkl, i.e. arrow-key text selection ("visual mode").
 //    If the combo feels finicky, raise `timeout-ms` in the combo below;
 //    if it fires by accident during normal lower/raise use, lower it.
+//
+// 4. raise_layer top-left key (was &trans, i.e. redundant plain ESC) is now
+//    &caps_word -- tap to type the next word in ALL CAPS, auto-releasing at
+//    the next space/punctuation. See the comment above raise_layer for how
+//    to widen its continue-list (e.g. so digits don't break it early).
 // ============================================================================
 
 / {
@@ -99,7 +104,7 @@
 
         raise_layer {
 // ------------------------------------------------------------------------------------------------------------
-// |       |     |     |      |      |      |                   | HOME | PG_DN | PG_UP | END  | C-LEFT| C-RGHT|  <- new: extended motions
+// | CAPSWD|     |     |      |      |      |                   | HOME | PG_DN | PG_UP | END  | C-LEFT| C-RGHT|  <- new: extended motions
 // |   `   |  1  |  2  |  3   |  4   |  5   |                   |  6   |   7   |   8   |  9   |   0   |       |
 // |   F1  |  F2 |  F3 |  F4  |  F5  |  F6  |                   |  <-  |   v   |  ^   |  ->   |       |       |
 // |   F7  |  F8 |  F9 |  F10 |  F11 |  F12 |        |  |       |  +   |   -   |   =   |  [   |   ]   |   \   |
@@ -108,8 +113,18 @@
 // END above RIGHT, PG_DN above DOWN, PG_UP above UP -- so the two rows read
 // as one coherent vim-style navigation cluster. C-LEFT/C-RGHT are
 // Ctrl+Left/Ctrl+Right (word-back/word-forward in most apps and terminals).
+//
+// CAPSWD (top-left) is &caps_word: one tap types the next word in all-caps,
+// auto-releasing at the next space/punctuation -- handy for CONSTANTS and
+// SNAKE_CASE. It's ZMK's stock behavior (no custom node needed), so its
+// default continue-list already covers letters, underscore, and backspace.
+// If you find it drops out mid-digit (e.g. typing "CONST_1"), you can widen
+// it by overriding the behavior in the `behaviors` block up top:
+//   &caps_word { continue-list = <UNDERSCORE BACKSPACE DELETE N0 N1 N2 N3 N4 N5 N6 N7 N8 N9>; };
+// This slot used to be &trans (falling through to plain ESC), which was
+// redundant since ESC is already the tap-action on the home-row Ctrl key.
             bindings = <
-&trans    &trans &trans &trans  &trans  &trans                       &kp HOME    &kp PG_DN &kp PG_UP &kp END    &kp LC(LEFT) &kp LC(RIGHT)
+&caps_word &trans &trans &trans  &trans  &trans                       &kp HOME    &kp PG_DN &kp PG_UP &kp END    &kp LC(LEFT) &kp LC(RIGHT)
 &kp GRAVE &kp N1 &kp N2 &kp N3  &kp N4  &kp N5                       &kp N6      &kp N7    &kp N8    &kp N9     &kp N0       &trans
 &kp F1    &kp F2 &kp F3 &kp F4  &kp F5  &kp F6                       &kp LEFT    &kp DOWN  &kp UP    &kp RIGHT  &trans       &trans
 &kp F7    &kp F8 &kp F9 &kp F10 &kp F11 &kp F12   &trans   &trans    &kp KP_PLUS &kp MINUS &kp EQUAL &kp LBKT   &kp RBKT     &kp BSLH

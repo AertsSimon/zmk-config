@@ -61,6 +61,21 @@
             key-positions = <52 55>;
             bindings = <&mo 3>;
         };
+
+        combo_caps_lock {
+            // Key positions 36 & 49 are LSHFT and RSHFT (row4=36-49, see
+            // note above). Pressing both together sends a real Caps Lock
+            // HID keycode instead of two Shift keycodes, so it toggles
+            // Caps Lock on the host directly -- unlike a host-side remap
+            // (e.g. Karabiner), this works on any machine the board is
+            // plugged/paired into, not just one you've configured.
+            // Restricted to default_layer since positions 36/49 mean
+            // something else (F7/trans, etc.) on the other layers.
+            timeout-ms = <50>;
+            key-positions = <36 49>;
+            bindings = <&kp CAPS>;
+            layers = <0>;
+        };
     };
 
     keymap {

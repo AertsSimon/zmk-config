@@ -8,6 +8,7 @@
 #include <dt-bindings/zmk/keys.h>
 #include <dt-bindings/zmk/bt.h>
 #include <dt-bindings/zmk/ext_power.h>
+#include <dt-bindings/zmk/modifiers.h>
 
 // ============================================================================
 // VIM-ORIENTED ADDITIONS (see git history for the "before" version if you
@@ -27,15 +28,24 @@
 //    LEFT, END above RIGHT, PG_DN above DOWN, PG_UP above UP. See the
 //    updated ASCII map on raise_layer.
 //
-// 3. select_layer (new layer 3): hold LOWER+RAISE together (combo below)
-//    to get Shift+hjkl, i.e. arrow-key text selection ("visual mode").
-//    If the combo feels finicky, raise `timeout-ms` in the combo below;
-//    if it fires by accident during normal lower/raise use, lower it.
+// 3. select_layer (new layer 3): hold LOWER+RAISE together (conditional
+//    layer below) to get Shift+hjkl, i.e. arrow-key text selection
+//    ("visual mode"). This uses ZMK's `conditional_layers` feature rather
+//    than a combo: it triggers off layer *state* (both LOWER and RAISE
+//    active), not simultaneous physical keypresses, so there's no timing
+//    window to miss -- press LOWER, then RAISE a moment later, and it
+//    still activates.
 //
 // 4. raise_layer top-left key (was &trans, i.e. redundant plain ESC) is now
 //    &caps_word -- tap to type the next word in ALL CAPS, auto-releasing at
 //    the next space/punctuation. See the comment above raise_layer for how
 //    to widen its continue-list (e.g. so digits don't break it early).
+//
+// 5. bspc_del behavior (below), used on the right-thumb BSPC key: tap for
+//    normal Backspace, hold Shift while tapping for Delete -- solves the
+//    classic compact-keyboard problem of having no dedicated Delete key.
+//    Shift is "swallowed" (not sent alongside DEL) via mod-morph's default
+//    `keep-mods = 0`, so it behaves like a real Delete key, not Shift+Del.
 // ============================================================================
 
 / {
@@ -48,33 +58,44 @@
             flavor = "balanced";
             bindings = <&kp>, <&kp>;
         };
+
+        bspc_del: backspace_or_delete {
+            compatible = "zmk,behavior-mod-morph";
+            label = "BSPC_DEL";
+            #binding-cells = <0>;
+            bindings = <&kp BSPC>, <&kp DEL>;
+            mods = <(MOD_LSFT|MOD_RSFT)>;
+        };
     };
 
     combos {
         compatible = "zmk,combos";
-        combo_select_layer {
-            // Key positions 52 & 55 are the LOWER and RAISE thumb keys
-            // (0-indexed, counting through default_layer's bindings list:
-            // row1=0-11, row2=12-23, row3=24-35, row4=36-49, thumbs=50-57).
-            // If you ever reorder the thumb row, update these positions.
-            timeout-ms = <50>;
-            key-positions = <52 55>;
-            bindings = <&mo 3>;
-        };
-
         combo_caps_lock {
-            // Key positions 36 & 49 are LSHFT and RSHFT (row4=36-49, see
-            // note above). Pressing both together sends a real Caps Lock
-            // HID keycode instead of two Shift keycodes, so it toggles
-            // Caps Lock on the host directly -- unlike a host-side remap
-            // (e.g. Karabiner), this works on any machine the board is
-            // plugged/paired into, not just one you've configured.
-            // Restricted to default_layer since positions 36/49 mean
-            // something else (F7/trans, etc.) on the other layers.
+            // Key positions 36 & 49 are LSHFT and RSHFT (0-indexed, counting
+            // through default_layer's bindings list: row1=0-11, row2=12-23,
+            // row3=24-35, row4=36-49, thumbs=50-57). Pressing both together
+            // sends a real Caps Lock HID keycode instead of two Shift
+            // keycodes, so it toggles Caps Lock on the host directly --
+            // unlike a host-side remap (e.g. Karabiner), this works on any
+            // machine the board is plugged/paired into, not just one you've
+            // configured. Restricted to default_layer since positions
+            // 36/49 mean something else (F7/trans, etc.) on other layers.
             timeout-ms = <50>;
             key-positions = <36 49>;
             bindings = <&kp CAPS>;
             layers = <0>;
+        };
+    };
+
+    conditional_layers {
+        compatible = "zmk,conditional-layers";
+        select_layer_trigger {
+            // If-layers use layer *numbers*: 1 = lower_layer, 2 = raise_layer
+            // (see their order under `keymap` below). then-layer is 3 =
+            // select_layer. Holding both LOWER and RAISE activates it --
+            // order/timing between the two doesn't matter.
+            if-layers = <1 2>;
+            then-layer = <3>;
         };
     };
 
@@ -87,13 +108,13 @@
 // |  TAB  |  Q  |  W  |  E   |  R   |  T   |                   |  Y   |  U    |  I    |  O   |   P   |   -   |
 // |ESC/CTL|  A  |  S  |  D   |  F   |  G   |                   |  H   |  J    |  K    |  L   |   ;   |   '   |  <- tap=ESC, hold=CTRL (see esc_ctrl behavior)
 // | SHIFT |  Z  |  X  |  C   |  V   |  B   |   "["  |  |  "]"  |  N   |  M    |  ,    |  .   |   /   | SHIFT |
-//                     | ALT  | GUI  | LOWER|  SPACE |  | ENTER | RAISE| BSPC  | GUI   |
+//                     | ALT  | GUI  | LOWER|  SPACE |  | ENTER | RAISE|BSPC/DEL| GUI  |  <- tap=BSPC, shift+tap=DEL (see bspc_del behavior)
             bindings = <
 &kp ESC             &kp N1 &kp N2 &kp N3   &kp N4   &kp N5                     &kp N6 &kp N7   &kp N8    &kp N9  &kp N0   &kp GRAVE
 &kp TAB             &kp Q  &kp W  &kp E    &kp R    &kp T                      &kp Y  &kp U    &kp I     &kp O   &kp P    &kp MINUS
 &esc_ctrl LCTRL ESC  &kp A  &kp S  &kp D    &kp F    &kp G                      &kp H  &kp J    &kp K     &kp L   &kp SEMI &kp SQT
 &kp LSHFT           &kp Z  &kp X  &kp C    &kp V    &kp B  &kp LBKT   &kp RBKT &kp N  &kp M    &kp COMMA &kp DOT &kp FSLH &kp RSHFT
-                              &kp LALT &kp LGUI &mo 1  &kp SPACE  &kp RET  &mo 2  &kp BSPC &kp RGUI
+                              &kp LALT &kp LGUI &mo 1  &kp SPACE  &kp RET  &mo 2  &bspc_del &kp RGUI
             >;
 
             sensor-bindings = <&inc_dec_kp C_VOL_UP C_VOL_DN>;
@@ -156,10 +177,11 @@
 // |       |     |     |      |      |      |                   |S-LEFT|S-DOWN | S-UP  |S-RGHT|       |       |  <- "visual mode": shift+hjkl
 // |       |     |     |      |      |      |        |  |       |      |       |       |      |       |       |
 //                     |      |      |      |        |  |       |      |       |       |
-// Layer 3, reached by holding LOWER+RAISE together (combo defined at the
-// top of this file). Everything else is &trans, so normal typing still
-// works underneath -- this only overlays hjkl with shifted arrows, letting
-// you extend a text selection the way vim's visual mode extends with hjkl.
+// Layer 3, reached by holding LOWER+RAISE together (conditional_layers
+// node defined at the top of this file -- not a combo, so no timing
+// window). Everything else is &trans, so normal typing still works
+// underneath -- this only overlays hjkl with shifted arrows, letting you
+// extend a text selection the way vim's visual mode extends with hjkl.
 // Release either thumb key to drop back out.
             bindings = <
 &trans &trans &trans &trans &trans &trans                     &trans        &trans        &trans      &trans         &trans &trans
